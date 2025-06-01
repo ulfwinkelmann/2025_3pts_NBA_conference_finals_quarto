@@ -1,0 +1,284 @@
+---
+title: "Less 3 Points this year in the conference finals?"
+subtitle: "Playoff 3PT Attempts and Percentages – Last 10 Years"
+format:
+  revealjs:
+    chalkboard:
+      buttons: false
+    slide-number: false
+    menu: false
+project:
+  type: website
+  output-dir: docs
+---
+
+```{python}
+# --- Imports and color setup ---
+import os
+import pandas as pd
+import time
+from nba_api.stats.endpoints import teamgamelog
+from nba_api.stats.static import teams
+import plotly.graph_objects as go
+
+color_palette_color_blind = [
+    "#000000", "#0072B2", "#882255", "#E69F00", "#117733", "#56B4E9",
+    "#009E73", "#F0E442", "#D55E00", "#CC79A7", "#999999", "#88CCEE",
+    "#44AA99", "#DDCC77", "#AA4499"
+]
+os.makedirs("data", exist_ok=True)
+
+# Download and cache playoff 3PT stats for all teams (last 10 years)
+current_season = '2024-25'
+seasons = [f"{y}-{str(y+1)[-2:]}" for y in range(2015, 2025)]
+prev_csv = "data/playoff_3pt_prev_seasons.csv"
+curr_csv = "data/playoff_3pt_current_season.csv"
+
+if not (os.path.exists(prev_csv) and os.path.exists(curr_csv)):
+    all_seasons_stats = []
+    current_season_stats = None
+    for season in seasons:
+        nba_teams = teams.get_teams()
+        all_logs = []
+        for team in nba_teams:
+            team_id = team['id']
+            team_name = team['full_name']
+            try:
+                gamelog = teamgamelog.TeamGameLog(team_id=team_id, season=season, season_type_all_star='Playoffs')
+                time.sleep(0.5)
+                df = gamelog.get_data_frames()[0]
+                df['TEAM_NAME'] = team_name
+                all_logs.append(df)
+            except Exception:
+                continue
+        if not all_logs:
+            continue
+        df_all = pd.concat(all_logs, ignore_index=True)
+        stats = df_all.groupby('TEAM_NAME')[['FG3M', 'FG3A']].sum().reset_index()
+        stats['FG3%'] = (stats['FG3M'] / stats['FG3A']).round(3)
+        games = df_all.groupby('TEAM_NAME').size().reset_index(name='GAMES')
+        stats = stats.merge(games, on='TEAM_NAME')
+        stats['FG3AperGame'] = stats['FG3A'] / stats['GAMES']
+        stats['SEASON'] = season
+        if season == current_season:
+            current_season_stats = stats
+        else:
+            all_seasons_stats.append(stats)
+    pd.concat(all_seasons_stats, ignore_index=True).to_csv(prev_csv, index=False)
+    current_season_stats.to_csv(curr_csv, index=False)
+```
+
+---
+
+
+## 
+
+```{python}
+import pandas as pd
+import plotly.graph_objects as go
+
+# Load data
+df_prev = pd.read_csv("data/playoff_3pt_prev_seasons.csv")
+current_season_stats = pd.read_csv("data/playoff_3pt_current_season.csv")
+
+# --- 1. Highlight only the 4 conference finals teams for current season ---
+conference_finals_teams_2025 = [
+    "New York Knicks", "Indiana Pacers",  # East
+    "Minnesota Timberwolves", "Oklahoma City Thunder"  # West
+]
+
+# Mark teams for coloring
+current_season_stats['highlight'] = current_season_stats['TEAM_NAME'].isin(conference_finals_teams_2025)
+highlight_colors = color_palette_color_blind[:4]
+current_season_stats['color'] = [
+    highlight_colors[conference_finals_teams_2025.index(t)] if t in conference_finals_teams_2025 else 'lightgrey'
+    for t in current_season_stats['TEAM_NAME']
+]
+
+# Use official team colors for the 2025 conference finals teams
+team_colors = {
+    "New York Knicks": "#006BB6",
+    "Indiana Pacers": "#FDBB30",
+    "Minnesota Timberwolves": "#236192",
+    "Oklahoma City Thunder": "#007AC1"
+}
+
+current_season_stats['color'] = [
+    team_colors.get(t, 'lightgrey') for t in current_season_stats['TEAM_NAME']
+]
+
+# --- 2. For previous seasons, highlight only the two finals teams each year ---
+finals_teams = {
+    "2014-15": ["Golden State Warriors", "Cleveland Cavaliers"],
+    "2015-16": ["Cleveland Cavaliers", "Golden State Warriors"],
+    "2016-17": ["Golden State Warriors", "Cleveland Cavaliers"],
+    "2017-18": ["Golden State Warriors", "Cleveland Cavaliers"],
+    "2018-19": ["Toronto Raptors", "Golden State Warriors"],
+    "2019-20": ["Los Angeles Lakers", "Miami Heat"],
+    "2020-21": ["Milwaukee Bucks", "Phoenix Suns"],
+    "2021-22": ["Golden State Warriors", "Boston Celtics"],
+    "2022-23": ["Denver Nuggets", "Miami Heat"],
+    "2023-24": ["Boston Celtics", "Dallas Mavericks"]
+}
+
+def finals_label(row):
+    if row['SEASON'] in finals_teams and row['TEAM_NAME'] in finals_teams[row['SEASON']]:
+        # Format as "Finals 15-16"
+        y1, y2 = row['SEASON'].split('-')
+        return f"Finals {y1[-2:]}-{y2}"
+    return ""
+
+df_prev['finals'] = df_prev.apply(lambda row: row['TEAM_NAME'] in finals_teams.get(row['SEASON'], []), axis=1)
+df_prev['symbol_size'] = df_prev['finals'].map(lambda x: 18 if x else 8)
+df_prev['text_label'] = df_prev.apply(finals_label, axis=1)
+
+# --- Plotting ---
+fig = go.Figure()
+
+# Plot all previous seasons (non-finals teams, small grey)
+df_prev_nonfinals = df_prev[~df_prev['finals']]
+fig.add_trace(go.Scatter(
+    x=df_prev_nonfinals['FG3AperGame'],
+    y=df_prev_nonfinals['FG3%'],
+    mode='markers',
+    marker=dict(color='lightgrey', size=8, opacity=0.5),
+    text=df_prev_nonfinals['TEAM_NAME'] + " " + df_prev_nonfinals['SEASON'],
+    name='Other Playoff Teams (Prev. 9 Seasons)',
+    hovertemplate='%{text}<br>3PA/G: %{x:.1f}<br>3P%: %{y:.3f}<extra></extra>'
+))
+
+# Plot finals teams from previous seasons (large grey, label above)
+df_prev_finals = df_prev[df_prev['finals']]
+fig.add_trace(go.Scatter(
+    x=df_prev_finals['FG3AperGame'],
+    y=df_prev_finals['FG3%'],
+    mode='markers+text',
+    marker=dict(color='grey', size=18, line=dict(width=1, color='black'), opacity=0.8),
+    text=df_prev_finals['text_label'],
+    textfont=dict(size=7),  # Half of default (usually 14)
+    textposition='top center',
+    name='Finals Teams (Prev. 9 Seasons)',
+    customdata=df_prev_finals[['TEAM_NAME', 'SEASON']],
+    hovertemplate='%{customdata[0]} Finals %{customdata[1]}<br>3PA/G: %{x:.1f}<br>3P%%: %{y:.3f}<extra></extra>'
+))
+
+# Plot current season, non-conference-finals teams (small grey)
+current_non_cf = current_season_stats[~current_season_stats['highlight']]
+fig.add_trace(go.Scatter(
+    x=current_non_cf['FG3AperGame'],
+    y=current_non_cf['FG3%'],
+    mode='markers',
+    marker=dict(color='lightgrey', size=8, opacity=0.8, line=dict(width=1, color='black')),
+    text=current_non_cf['TEAM_NAME'],
+    name='Other Playoff Teams (2025)',
+    hovertemplate='%{text}<br>3PA/G: %{x:.1f}<br>3P%: %{y:.3f}<extra></extra>'
+))
+
+# Plot current season, conference finals teams (large, colored, label above)
+current_cf = current_season_stats[current_season_stats['highlight']]
+fig.add_trace(go.Scatter(
+    x=current_cf['FG3AperGame'],
+    y=current_cf['FG3%'],
+    mode='markers+text',
+    marker=dict(color=current_cf['color'], size=18, line=dict(width=1, color='black')),
+    text=current_cf['TEAM_NAME'],
+    textfont=dict(size=7),  # Half of default (usually 14)
+    textposition='top center',
+    name='Conference Finals 2025',
+    hovertemplate='%{text}<br>3PA/G: %{x:.1f}<br>3P%: %{y:.3f}<extra></extra>'
+))
+
+# Calculate averages for all teams over the last 10 years (including current season)
+all_teams = pd.concat([df_prev[['FG3AperGame', 'FG3%']], current_season_stats[['FG3AperGame', 'FG3%']]], ignore_index=True)
+avg_3pt_pct = all_teams['FG3%'].mean()
+avg_3pa_per_game = all_teams['FG3AperGame'].mean()
+
+# Add horizontal line for average 3PT%
+fig.add_shape(
+    type="line",
+    x0=all_teams['FG3AperGame'].min(),
+    x1=all_teams['FG3AperGame'].max(),
+    y0=avg_3pt_pct,
+    y1=avg_3pt_pct,
+    line=dict(color="red", width=2, dash="dash"),
+    name="Avg 3P%"
+)
+
+# Add vertical line for average 3PT Attempts per Game
+fig.add_shape(
+    type="line",
+    x0=avg_3pa_per_game,
+    x1=avg_3pa_per_game,
+    y0=all_teams['FG3%'].min(),
+    y1=all_teams['FG3%'].max(),
+    line=dict(color="blue", width=2, dash="dash"),
+    name="Avg 3PA/G"
+)
+
+# Optionally, add annotations for the averages
+fig.add_annotation(
+    x=all_teams['FG3AperGame'].max(),
+    y=avg_3pt_pct,
+    xanchor="left",
+    yanchor="middle",
+    text=f"Avg 3P%: {avg_3pt_pct:.3f}",
+    showarrow=False,
+    font=dict(color="red", size=11),
+    bgcolor="white"
+)
+fig.add_annotation(
+    x=avg_3pa_per_game,
+    y=all_teams['FG3%'].max(),
+    xanchor="center",
+    yanchor="bottom",
+    text=f"Avg 3PA/G: {avg_3pa_per_game:.1f}",
+    showarrow=False,
+    font=dict(color="blue", size=11),
+    bgcolor="white"
+)
+
+fig.update_layout(
+    title='NBA Playoffs: 3PT % and 3PT Attemps (Last 10 Years)',
+    xaxis_title='3PT Attempts per Game',
+    yaxis_title='3PT Percentage',
+    showlegend=True,
+    legend=dict(
+        orientation="h",      # horizontal legend
+        yanchor="bottom",
+        y=-0.25,              # move legend below plot
+        xanchor="center",
+        x=0.5,
+        font=dict(size=12)
+    ),
+    xaxis=dict(
+        ticks="outside",
+        ticklen=6,
+        tickwidth=2,
+        tickcolor='#444',
+        showticklabels=True,
+        tickmode='auto',
+        tickfont=dict(size=12, color='black'),
+        tickformat=".1f"
+    ),
+    yaxis=dict(
+        ticks="outside",
+        ticklen=6,
+        tickwidth=2,
+        tickcolor='#444',
+        showticklabels=True,
+        tickmode='auto',
+        tickfont=dict(size=12, color='black'),
+        tickformat=".3f"
+    ),
+    autosize=True
+)
+fig.show(config={"responsive": True})
+```
+
+```{python}
+#| fig-align: "center"
+#| fig-width: 16
+#| fig-height: 8
+#| column: page
+```
+
