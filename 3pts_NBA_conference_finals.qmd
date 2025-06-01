@@ -67,6 +67,9 @@ if not (os.path.exists(prev_csv) and os.path.exists(curr_csv)):
     current_season_stats.to_csv(curr_csv, index=False)
 ```
 
+
+## NBA Playoffs: 3PT % and 3PT Attempts per Game. This year and the last 10 years
+
 ```{python}
 #| code-fold: true
 import pandas as pd
@@ -233,7 +236,6 @@ fig.add_annotation(
 )
 
 fig.update_layout(
-    title='NBA Playoffs: 3PT % and 3PT Attempts per Game. This year and the last 10 years)',
     xaxis_title='3PT Attempts per Game',
     yaxis_title='3PT Percentage',
     showlegend=True,
