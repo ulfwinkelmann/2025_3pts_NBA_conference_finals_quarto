@@ -238,7 +238,7 @@ fig.add_annotation(
 )
 
 fig.update_layout(
-    title='NBA Playoffs: 3PT % and 3PT Attemps (Last 10 Years)',
+    title='NBA Playoffs: 3PT % and 3PT Attempts per Game. This year and the last 10 years)',
     xaxis_title='3PT Attempts per Game',
     yaxis_title='3PT Percentage',
     showlegend=True,
