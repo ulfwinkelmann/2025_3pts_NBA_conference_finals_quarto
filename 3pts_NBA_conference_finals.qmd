@@ -255,7 +255,8 @@ fig.update_layout(
         showticklabels=True,
         tickmode='auto',
         tickfont=dict(size=12, color='black'),
-        tickformat=".1f"
+        tickformat=".1f",
+        fixedrange=True
     ),
     yaxis=dict(
         ticks="outside",
@@ -265,14 +266,15 @@ fig.update_layout(
         showticklabels=True,
         tickmode='auto',
         tickfont=dict(size=12, color='black'),
-        tickformat=".3f"
+        tickformat=".3f",
+        fixedrange=True
     ),
     autosize=True
 )
 fig.show(config={
     "responsive": True,
-    "displayModeBar": True,
-    "scrollZoom": True
+    "displayModeBar": False,  # Hide the modebar (no zoom tools)
+    "scrollZoom": False       # Disable scroll/pinch zoom
 })
 ```
 
