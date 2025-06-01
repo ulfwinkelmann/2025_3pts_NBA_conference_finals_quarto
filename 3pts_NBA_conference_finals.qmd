@@ -2,17 +2,16 @@
 title: "Less 3 Points this year in the conference finals?"
 subtitle: "Playoff 3PT Attempts and Percentages – Last 10 Years"
 format:
-  revealjs:
-    chalkboard:
-      buttons: false
-    slide-number: false
-    menu: false
-project:
-  type: website
-  output-dir: docs
+  html:
+    html-math-method: katex
+    code-tools: false
+    self-contained: false
+execute:
+  warning: false
 ---
 
 ```{python}
+#| code-fold: true
 # --- Imports and color setup ---
 import os
 import pandas as pd
@@ -68,12 +67,8 @@ if not (os.path.exists(prev_csv) and os.path.exists(curr_csv)):
     current_season_stats.to_csv(curr_csv, index=False)
 ```
 
----
-
-
-## 
-
 ```{python}
+#| code-fold: true
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -279,10 +274,5 @@ fig.show(config={
 })
 ```
 
-```{python}
-#| fig-align: "center"
-#| fig-width: 8
-#| fig-height: 5
-#| column: page
-```
+
 
