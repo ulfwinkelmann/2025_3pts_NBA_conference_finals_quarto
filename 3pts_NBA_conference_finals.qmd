@@ -241,8 +241,8 @@ fig.update_layout(
     showlegend=True,
     legend=dict(
         orientation="h",      # horizontal legend
-        yanchor="bottom",
-        y=-0.25,              # move legend below plot
+        yanchor="top",        # anchor to the top
+        y=1.08,               # place legend above the plot area (adjust as needed)
         xanchor="center",
         x=0.5,
         font=dict(size=12)
@@ -255,7 +255,7 @@ fig.update_layout(
         showticklabels=True,
         tickmode='auto',
         tickfont=dict(size=12, color='black'),
-        tickformat=".1f",
+        tickformat="d",  # integer ticks
         fixedrange=True
     ),
     yaxis=dict(
@@ -266,7 +266,7 @@ fig.update_layout(
         showticklabels=True,
         tickmode='auto',
         tickfont=dict(size=12, color='black'),
-        tickformat=".3f",
+        tickformat="d",  # integer percent ticks
         fixedrange=True
     ),
     autosize=True
